@@ -1,0 +1,312 @@
+<meta name='viewport' content='width=device-width, initial-scale=1'/><!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Like U V3.3 - Real Subs Added</title>
+  <style>
+    body {
+      margin: 0;
+      background: #121212;
+      color: #fff;
+      font-family: Arial, sans-serif;
+    }
+
+    header {
+      padding: 10px;
+      background: #1f1f1f;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .profile {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .profile img {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+    }
+
+    #searchInput {
+      padding: 6px;
+      border-radius: 5px;
+      border: none;
+      width: 200px;
+      margin-top: 5px;
+    }
+
+    .videoCard {
+      background: #222;
+      margin: 15px;
+      padding: 10px;
+      border-radius: 10px;
+    }
+
+    video {
+      width: 100%;
+    }
+
+    button, input {
+      padding: 6px;
+      border-radius: 4px;
+      border: none;
+    }
+
+    .chatBox {
+      background: #111;
+      max-height: 150px;
+      overflow-y: auto;
+      margin-top: 10px;
+      padding: 5px;
+      border-radius: 5px;
+      font-size: 14px;
+    }
+
+    .chatInput {
+      display: flex;
+      gap: 5px;
+      margin-top: 5px;
+    }
+
+    .chatMessage {
+      margin: 2px 0;
+    }
+
+    #loginScreen {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: #000;
+      color: white;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 10;
+    }
+
+    #loginScreen input, #loginScreen select {
+      margin: 10px;
+      padding: 10px;
+      width: 80%;
+      border-radius: 5px;
+    }
+
+    #videoFeed {
+      padding: 10px;
+    }
+
+    footer {
+      background: #1f1f1f;
+      padding: 10px;
+      text-align: center;
+      position: sticky;
+      bottom: 0;
+    }
+
+    .likeBtn {
+      background: #e91e63;
+      color: white;
+      margin: 5px 0;
+    }
+
+    .reactionBar {
+      margin-top: 10px;
+    }
+
+    .reactionBar button {
+      margin-right: 5px;
+      background: #333;
+      color: white;
+    }
+
+    .subscribeBtn {
+      background: #2196f3;
+      color: white;
+      margin-top: 5px;
+    }
+
+    .subscribed {
+      background: #4caf50 !important;
+    }
+  </style>
+</head>
+<body>
+
+<div id="loginScreen">
+  <h2>Enter Like U</h2>
+  <input type="text" id="username" placeholder="Enter username">
+  <select id="profilePic">
+    <option value="https://i.pravatar.cc/40?img=1">Profile Pic 1</option>
+    <option value="https://i.pravatar.cc/40?img=2">Profile Pic 2</option>
+    <option value="https://i.pravatar.cc/40?img=3">Profile Pic 3</option>
+  </select>
+  <button onclick="login()">Enter</button>
+</div>
+
+<header>
+  <div class="profile">
+    <img id="userPic" src="">
+    <span id="userName"></span>
+  </div>
+  <input type="text" id="searchInput" placeholder="Search videos..." oninput="loadVideos()">
+</header>
+
+<div id="videoFeed"></div>
+
+<footer>
+  <input type="file" accept="video/mp4" id="uploadInput" hidden onchange="handleUpload()">
+  <button onclick="document.getElementById('uploadInput').click()">Upload Video</button>
+</footer>
+
+<script>
+  let user = { name: "", pic: "", subscriptions: [] };
+  let subscribers = {}; // global sub tracker
+  let videos = [
+    {
+      title: "Cool Intro",
+      src: "videos/sample.mp4",
+      likes: 0,
+      views: 0,
+      reactions: { "🔥": 0, "❤️": 0, "😮": 0, "😂": 0 },
+      chat: [],
+      creator: "CoolDev"
+    }
+  ];
+
+  function login() {
+    const name = document.getElementById("username").value;
+    const pic = document.getElementById("profilePic").value;
+    if (name) {
+      user.name = name;
+      user.pic = pic;
+      document.getElementById("userName").textContent = name;
+      document.getElementById("userPic").src = pic;
+      document.getElementById("loginScreen").style.display = "none";
+      loadVideos();
+    }
+  }
+
+  function loadVideos() {
+    const feed = document.getElementById("videoFeed");
+    const searchTerm = document.getElementById("searchInput").value.toLowerCase();
+    feed.innerHTML = "";
+    videos.filter(video =>
+      video.title.toLowerCase().includes(searchTerm) ||
+      video.creator.toLowerCase().includes(searchTerm)
+    ).forEach((video, index) => {
+      const isSubscribed = subscribers[video.creator]?.has(user.name);
+      const reactionsHTML = Object.keys(video.reactions).map(emoji =>
+        `<button onclick="react(${index}, '${emoji}')">${emoji} ${video.reactions[emoji]}</button>`
+      ).join(" ");
+
+      const card = document.createElement("div");
+      card.className = "videoCard";
+      card.innerHTML = `
+        <h3>${video.title}</h3>
+        <p>By: <strong>${video.creator}</strong> | Subscribers: ${getSubscriberCount(video.creator)}</p>
+        <button class="subscribeBtn ${isSubscribed ? 'subscribed' : ''}" onclick="toggleSubscribe('${video.creator}', this)">
+          ${isSubscribed ? 'Subscribed' : 'Subscribe'}
+        </button>
+        <video controls onclick="addView(${index})">
+          <source src="${video.src}" type="video/mp4">
+        </video>
+        <p>Views: ${video.views} | Likes: ${video.likes}</p>
+        <button class="likeBtn" onclick="likeVideo(${index})">Like</button>
+        <div class="reactionBar">${reactionsHTML}</div>
+        <div class="chatBox" id="chat-${index}"></div>
+        <div class="chatInput">
+          <input type="text" id="chatInput-${index}" placeholder="Say something...">
+          <button onclick="sendChat(${index})">Send</button>
+        </div>
+      `;
+      feed.appendChild(card);
+      updateChat(index);
+    });
+  }
+
+  function likeVideo(index) {
+    videos[index].likes++;
+    loadVideos();
+  }
+
+  function addView(index) {
+    videos[index].views++;
+    loadVideos();
+  }
+
+  function sendChat(index) {
+    const input = document.getElementById(`chatInput-${index}`);
+    const text = input.value.trim();
+    if (text) {
+      videos[index].chat.push({ user: user.name, pic: user.pic, text });
+      input.value = "";
+      updateChat(index);
+    }
+  }
+
+  function updateChat(index) {
+    const chatBox = document.getElementById(`chat-${index}`);
+    chatBox.innerHTML = videos[index].chat.map(msg => `
+      <div class="chatMessage">
+        <img src="${msg.pic}" style="width:20px; border-radius:50%;"> 
+        <strong>${msg.user}:</strong> ${msg.text}
+      </div>
+    `).join('');
+    chatBox.scrollTop = chatBox.scrollHeight;
+  }
+
+  function handleUpload() {
+    const file = document.getElementById("uploadInput").files[0];
+    if (file) {
+      const url = URL.createObjectURL(file);
+      const title = prompt("Enter video title:");
+      videos.unshift({
+        title: title || "Untitled",
+        src: url,
+        likes: 0,
+        views: 0,
+        reactions: { "🔥": 0, "❤️": 0, "😮": 0, "😂": 0 },
+        chat: [],
+        creator: user.name
+      });
+      loadVideos();
+    }
+  }
+
+  function react(index, emoji) {
+    videos[index].reactions[emoji]++;
+    loadVideos();
+  }
+
+  function toggleSubscribe(creator, btn) {
+    if (!subscribers[creator]) subscribers[creator] = new Set();
+
+    if (subscribers[creator].has(user.name)) {
+      subscribers[creator].delete(user.name);
+    } else {
+      subscribers[creator].add(user.name);
+    }
+
+    // Manage personal sub list (optional)
+    const idx = user.subscriptions.indexOf(creator);
+    if (idx === -1) {
+      user.subscriptions.push(creator);
+    } else {
+      user.subscriptions.splice(idx, 1);
+    }
+
+    loadVideos();
+  }
+
+  function getSubscriberCount(creator) {
+    return subscribers[creator] ? subscribers[creator].size : 0;
+  }
+</script>
+
+</body>
+</html>
